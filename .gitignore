@@ -1,0 +1,13 @@
+tests
+node_modules
+.idea
+logs
+
+# Ignore file which could reveal the network architecture + devices IP adresses
+config.json
+
+.DS_Store
+Thumbs.db
+
+# Ignore built ts files
+dist/**/*
