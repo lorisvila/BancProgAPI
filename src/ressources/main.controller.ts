@@ -5,7 +5,7 @@ export class MainController {
 
     App: App
     router: Router
-    mainEndpoint: string = "/api/v1/main"
+    mainEndpoint: string = "/api/v1/"
 
     constructor(mainClass: App) {
         this.router = Router()
@@ -13,15 +13,6 @@ export class MainController {
 
         this.router.get('/', (req, res) => {
             this.App.sendResponse(res, "The API is running ! It seems like you'd like to get more content ? Go see the docs :)", {code: 200})
-        })
-
-        this.router.get('/status', (req: Request, res: Response) => {
-            this.App.sendResponse(res, this.App.MainModule.bancConfiguration, {code: 200, message: "OK"})
-        })
-
-        this.router.get('/refresh', (req, res) => {
-            this.App.MainModule.pingAllDevices()
-            this.App.sendResponse(res, undefined, {code: 200, message: "Data refesh in action !"})
         })
 
         this.router.get('/configs', (req: Request, res: Response) => {

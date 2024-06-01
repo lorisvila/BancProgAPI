@@ -1,18 +1,35 @@
 // App Types
+import {BinaryValue, Gpio} from "onoff";
+
 export type ConfigType = {
-  configs: BancConfig[]
   app: {
     defaultConfig: string
+    defaultState: BinaryValue
+    invertOutputLogic: boolean
   }
   webserver: {
       port: number,
       host: string
-  },
+  }
+  configs: BancConfig[]
 }
 
 export type BancConfig = {
   Name: string
+  Cards: Card[]
   Networking: ConfigNetworking[]
+}
+export type Card = {
+  cardType?: string,
+  cardName: string,
+  pins: CardPin[]
+}
+export type CardPin = {
+  GPIO: number,
+  PinName: string,
+  NumberOnCard: string,
+  object?: Gpio,
+  state?: BinaryValue
 }
 export type ConfigNetworking = {
   name: string

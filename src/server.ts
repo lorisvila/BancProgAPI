@@ -5,10 +5,13 @@ import {ConfigType, ResponseType} from "~/types/types";
 import {MainController} from "~/ressources/main.controller";
 import {MainModule} from "~/modules/main.module";
 import {GpioController} from "~/ressources/gpio.controller";
+import {GpioModule} from "~/modules/GPIO.module";
+import * as process from "node:process";
+import {NetworkController} from "~/ressources/network.controller";
+import {NetworkModule} from "~/modules/network.module";
 
 
 const CONFIG_FILE_PATH: string = "./config.json"
-
 
 export class App {
 
@@ -17,7 +20,9 @@ export class App {
   MainController: MainController
   MainModule: MainModule
   GpioController: GpioController
-
+  GpioModule: GpioModule
+  NetworkController: NetworkController
+  NetworkModule: NetworkModule
 
   constructor() {
     this.app.use(express.json())
@@ -29,12 +34,16 @@ export class App {
     this.MainController = new MainController(this)
     this.MainModule = new MainModule(this)
     this.GpioController = new GpioController(this)
+    this.GpioModule = new GpioModule(this)
+    this.NetworkController = new NetworkController(this)
+    this.NetworkModule = new NetworkModule(this)
 
     this.app.use(cors())
 
     this.app.use(this.logRequest)
     this.app.use(this.MainController.mainEndpoint, this.MainController.router)
     this.app.use(this.GpioController.mainEndpoint, this.GpioController.router)
+    this.app.use(this.NetworkController.mainEndpoint, this.NetworkController.router)
 
     // Fallback 404 if no endpoint found in router above
     this.app.use((req, res, next) => {
@@ -60,7 +69,7 @@ export class App {
       data: data,
       status: status,
     }
-    res.status(responseObject.status.code )
+    res.status(responseObject.status.code)
     res.json(responseObject)
   }
 
