@@ -5,7 +5,7 @@ export class NetworkController {
 
     App: App
     router: Router
-    mainEndpoint: string = "/api/v1/network/"
+    baseEndpoint: string = "/api/v1/network/"
 
     constructor(mainClass: App) {
         this.router = Router()

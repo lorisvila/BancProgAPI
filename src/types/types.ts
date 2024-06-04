@@ -1,36 +1,87 @@
-// App Types
-import {BinaryValue, Gpio} from "onoff";
+// Global config side
 
 export type ConfigType = {
   app: {
     defaultConfig: string
-    defaultState: BinaryValue
-    invertOutputLogic: boolean
+    pingInterval: number
   }
   webserver: {
-      port: number,
+      port: number
       host: string
   }
   configs: BancConfig[]
+  gpio: {
+    defaultState: boolean
+    modules: GPIOModule[]
+    pinout: Pinout[]
+  }
 }
 
 export type BancConfig = {
   Name: string
   Cards: Card[]
+  Etats: Etat[]
+  Commandes: Commande[]
   Networking: ConfigNetworking[]
 }
+
+// GPIO Config Side
+
 export type Card = {
-  cardType?: string,
-  cardName: string,
+  cardType?: string
+  cardName: string
   pins: CardPin[]
 }
 export type CardPin = {
-  GPIO: number,
+  GPIO: {
+    Module:  number
+    Pin: number
+  },
   PinName: string,
   NumberOnCard: string,
-  object?: Gpio,
-  state?: BinaryValue
+  state?: boolean
 }
+export type GPIOModule = {
+  defaultState: number,
+  API_Address: number,
+  I2C_Address_HEX: string // HEX value "0x2F" stored as a string --> so you need to parseInt,
+  registers: number[] // 2 8bit HEX register stored
+}
+export type Pinout = {
+  pins: number[]
+  GPIO_register_address_HEX: string // HEX value "0x2F" stored as a string --> so you need to parseInt
+  IODIR_register_address_HEX: string // HEX value "0x2F" stored as a string --> so you need to parseInt
+  register_number: number
+}
+
+// Scripting Side
+
+export type Etat = {
+  category: string
+  actualCode: number
+  actualState?: EtatState
+  states: EtatState[]
+}
+export type EtatState = {
+  name: string
+  code: number
+  outputs: OutputCommandOrState[]
+}
+export type OutputCommandOrState = {
+  NumberOnCard: string
+  state: false
+  cards: string[]
+}
+
+export type Commande = {
+  Name: string
+  cardType: string
+  conditions: OutputCommandOrState[][]
+  outputs: OutputCommandOrState[]
+}
+
+// Network Config side
+
 export type ConfigNetworking = {
   name: string
   quantity: number
@@ -42,9 +93,8 @@ export type DeviceNetworkParams = {
   IsAlive?: boolean
 }
 
-export type OnlineDevices = {}
-
 // Requests Types
+
 export type ResponseType = {
   date: number // Time as the 32 bits value of time
   data: any

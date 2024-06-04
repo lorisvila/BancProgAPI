@@ -5,7 +5,7 @@ export class MainController {
 
     App: App
     router: Router
-    mainEndpoint: string = "/api/v1/"
+    baseEndpoint: string = "/api/v1/"
 
     constructor(mainClass: App) {
         this.router = Router()
@@ -38,5 +38,8 @@ export class MainController {
                 this.App.sendResponse(res, undefined, {code: 404, message: `${configName} not found...`})
             }
         })
+
+        //TODO : Add a current config + change config url
+
     }
 }

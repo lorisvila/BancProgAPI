@@ -1,6 +1,5 @@
 import {App} from "~/server";
 import {BancConfig, ConfigNetworking, DeviceNetworkParams} from "~/types/types";
-import {sys} from "ping"
 
 export class MainModule {
 

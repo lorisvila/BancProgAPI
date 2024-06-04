@@ -4,11 +4,13 @@ import express, {Express, NextFunction, Request, Response} from 'express';
 import {ConfigType, ResponseType} from "~/types/types";
 import {MainController} from "~/ressources/main.controller";
 import {MainModule} from "~/modules/main.module";
-import {GpioController} from "~/ressources/gpio.controller";
+import {GpioController} from "~/ressources/GPIO.controller";
 import {GpioModule} from "~/modules/GPIO.module";
 import * as process from "node:process";
 import {NetworkController} from "~/ressources/network.controller";
 import {NetworkModule} from "~/modules/network.module";
+import {CommandsController} from "~/ressources/commands.controller";
+import {CommandsModule} from "~/modules/commands.module";
 
 
 const CONFIG_FILE_PATH: string = "./config.json"
@@ -23,6 +25,8 @@ export class App {
   GpioModule: GpioModule
   NetworkController: NetworkController
   NetworkModule: NetworkModule
+  CommandsController: CommandsController
+  CommandsModule: CommandsModule
 
   constructor() {
     this.app.use(express.json())
@@ -37,13 +41,16 @@ export class App {
     this.GpioModule = new GpioModule(this)
     this.NetworkController = new NetworkController(this)
     this.NetworkModule = new NetworkModule(this)
+    this.CommandsController = new CommandsController(this)
+    this.CommandsModule = new CommandsModule(this)
 
     this.app.use(cors())
 
     this.app.use(this.logRequest)
-    this.app.use(this.MainController.mainEndpoint, this.MainController.router)
-    this.app.use(this.GpioController.mainEndpoint, this.GpioController.router)
-    this.app.use(this.NetworkController.mainEndpoint, this.NetworkController.router)
+    this.app.use(this.MainController.baseEndpoint, this.MainController.router)
+    this.app.use(this.GpioController.baseEndpoint, this.GpioController.router)
+    this.app.use(this.NetworkController.baseEndpoint, this.NetworkController.router)
+    this.app.use(this.CommandsController.baseEndpoint, this.CommandsController.router)
 
     // Fallback 404 if no endpoint found in router above
     this.app.use((req, res, next) => {

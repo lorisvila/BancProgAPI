@@ -1,5 +1,5 @@
-import {App} from "~/server";
 import {BancConfig, ConfigNetworking, DeviceNetworkParams} from "~/types/types";
+import {App} from "~/server";
 import {sys} from "ping";
 
 export class NetworkModule {
@@ -10,8 +10,9 @@ export class NetworkModule {
     constructor(mainClass: App) {
         this.mainClass = mainClass
         this.bancConfiguration = this.mainClass.MainModule.bancConfiguration
-        this.pingAllDevices()
-        setInterval(() => {this.pingAllDevices()}, 5000) // Ping les équipements toutes les 20s
+        this.pingAllDevices() // Ping les équipements pour la 1e fois
+        // Ping les équipements toutes les X sec selon la config
+        setInterval(() => {this.pingAllDevices()}, this.mainClass.config.app.pingInterval*1000)
     }
 
     pingAllDevices() {
