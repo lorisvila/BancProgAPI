@@ -33,4 +33,11 @@ export class NetworkModule {
         }
     }
 
+    getNetworkDevicesStatus(): ConfigNetworking[] {
+        if (!this.bancConfiguration) {
+            throw new Error('Trying to get the network devices status without a bancConfiguration');
+        }
+        return this.bancConfiguration.Networking
+    }
+
 }

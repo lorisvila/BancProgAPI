@@ -1,5 +1,6 @@
 import {Request, Response, Router} from "express";
 import {App} from "~/server";
+import {ConfigNetworking, DeviceNetworkParams} from "~/types/types";
 
 export class NetworkController {
 
@@ -11,11 +12,10 @@ export class NetworkController {
         this.router = Router()
         this.App = mainClass
 
-        this.router.get('/status', (req: Request, res: Response) => {
-            let responseObject = {
-                config: this.App.MainModule.bancConfiguration
-            }
-            this.App.sendResponse(res, responseObject, {code: 200, message: "OK"})
+        this.router.get('/networkDevicesStatus', (req: Request, res: Response) => {
+            this.App.NetworkModule.pingAllDevices()
+            let response: ConfigNetworking[] = this.App.NetworkModule.getNetworkDevicesStatus()
+            this.App.sendResponse(res, response, {code: 200, message: "OK"})
         })
 
         this.router.get('/refresh', (req, res) => {

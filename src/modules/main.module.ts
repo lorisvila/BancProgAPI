@@ -8,12 +8,12 @@ export class MainModule {
 
     constructor(mainClass: App) {
         this.mainClass = mainClass
-        console.log(`Loading the configuration : ${this.mainClass.config.app.defaultConfig}`)
         this.importConfigBanc()
     }
 
-    importConfigBanc() {
-        this.bancConfiguration = this.mainClass.config.configs.find((config) => config.Name == this.mainClass.config.app.defaultConfig)
+importConfigBanc() {
+    console.log(`Loading the configuration : ${this.mainClass.config.app.defaultConfig}`)
+    this.bancConfiguration = this.mainClass.config.configs.find((config) => config.Name == this.mainClass.config.app.defaultConfig)
         if (!this.bancConfiguration) {
             throw Error(`La configuration ${this.mainClass.config.app.defaultConfig} n'a pas été trouvée...`)
         }

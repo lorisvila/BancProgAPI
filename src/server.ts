@@ -35,14 +35,14 @@ export class App {
       process.exit(2)
     }
     this.config = tmp_config
-    this.MainController = new MainController(this)
     this.MainModule = new MainModule(this)
-    this.GpioController = new GpioController(this)
     this.GpioModule = new GpioModule(this)
-    this.NetworkController = new NetworkController(this)
     this.NetworkModule = new NetworkModule(this)
-    this.CommandsController = new CommandsController(this)
     this.CommandsModule = new CommandsModule(this)
+    this.MainController = new MainController(this)
+    this.GpioController = new GpioController(this)
+    this.NetworkController = new NetworkController(this)
+    this.CommandsController = new CommandsController(this)
 
     this.app.use(cors())
 
@@ -53,7 +53,7 @@ export class App {
     this.app.use(this.CommandsController.baseEndpoint, this.CommandsController.router)
 
     // Fallback 404 if no endpoint found in router above
-    this.app.use((req, res, next) => {
+    this.app.use((req: Request, res: Response) => {
       let endpoint = req.url
       this.sendResponse(res, {}, {code: 404, message: `Endpoint '${endpoint}' not found...`})
     })

@@ -1,4 +1,11 @@
-export type ErrorNameGPIO = 'PIN_NOT_FOUND' | 'CARD_NOT_FOUND' | 'MODULE_GPIO_NOT_FOUND' | 'ERROR_WRITING_STATE' | 'ERROR_READING_STATE' | 'I2C_BUS_ERROR'
+export type ErrorNameGPIO =
+    'PIN_NOT_FOUND' |
+    'CARD_NOT_FOUND' |
+    'MODULE_GPIO_NOT_FOUND' |
+    'ERROR_WRITING_STATE' |
+    'ERROR_READING_STATE' |
+    'I2C_BUS_ERROR' |
+    'PIN_OR_MODULE_GPIO_NOT_FOUND'
 
 export class GPIOError extends Error {
     name: ErrorNameGPIO;
@@ -15,7 +22,7 @@ export class GPIOError extends Error {
     }
 }
 
-export type ErrorNameCommand = 'COMMAND_NOT_FOUND' | '' | '' | '' | '' | ''
+export type ErrorNameCommand = 'COMMAND_NOT_FOUND' | 'ETAT_NOT_FOUND' | 'COMMAND_FORBIDDEN' | '' | '' | ''
 
 export class CommandError extends Error {
     name: ErrorNameCommand;

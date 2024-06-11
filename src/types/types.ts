@@ -75,15 +75,21 @@ export type OutputCommandOrState = {
 
 export type Commande = {
   Name: string
+  shortName: string
   cardType: string
-  conditions: OutputCommandOrState[][]
+  conditions: CommandeCondition[][]
   outputs: OutputCommandOrState[]
+}
+export type CommandeCondition = {
+  category: string
+  code: number
 }
 
 // Network Config side
 
 export type ConfigNetworking = {
   name: string
+  def: string
   quantity: number
   addresses: DeviceNetworkParams[]
 }

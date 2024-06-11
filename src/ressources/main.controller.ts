@@ -15,21 +15,18 @@ export class MainController {
             this.App.sendResponse(res, "The API is running ! It seems like you'd like to get more content ? Go see the docs :)", {code: 200})
         })
 
-        this.router.get('/configs', (req: Request, res: Response) => {
+        this.router.get('/status', (req: Request, res: Response) => {
+            let responseObject = {
+                config: this.App.MainModule.bancConfiguration
+            }
+            this.App.sendResponse(res, responseObject, {code: 200, message: "OK"})
+        })
+
+        this.router.get('/getAllConfigs', (req: Request, res: Response) => {
             this.App.sendResponse(res, this.App.config.configs, {code: 200, message: "OK"})
         })
 
-        this.router.get('/configsNameList', (req: Request, res: Response) => {
-            let names: string[] = []
-            this.App.config.configs.forEach((config) => names.push(config.Name))
-            if (names.length != 0) {
-                this.App.sendResponse(res, names, {code: 200, message: "OK"})
-            } else {
-                this.App.sendResponse(res, undefined, {code: 500, message: `Une erreur est survenue dans la config...`})
-            }
-        })
-
-        this.router.get('/config/:configName', (req: Request, res: Response) => {
+        this.router.get('/getConfig/:configName', (req: Request, res: Response) => {
             let configName = req.params.configName
             let configObject = this.App.config.configs.find((config) => config.Name == configName)
             if (configObject) {
@@ -37,6 +34,10 @@ export class MainController {
             } else {
                 this.App.sendResponse(res, undefined, {code: 404, message: `${configName} not found...`})
             }
+        })
+
+        this.router.get('/getCurrentConfig', (req: Request, res: Response) => {
+            this.App.sendResponse(res, this.App.MainModule.bancConfiguration, {code: 200, message: "0K"})
         })
 
         //TODO : Add a current config + change config url

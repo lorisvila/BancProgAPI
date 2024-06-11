@@ -1,7 +1,7 @@
 import {App} from "~/server";
 import {Request, Response, Router} from "express";
 import {GPIOError} from "~/types/errors";
-import {Card, CardPin, GPIOModule} from "~/types/types";
+import {Card, CardPin, GPIOModule, Pinout} from "~/types/types";
 
 export class GpioController {
 
@@ -26,12 +26,7 @@ export class GpioController {
                 let response = this.App.GpioModule.writeValueToGPIO(card, numberOnCard, value)
                 this.App.sendResponse(res, response, {code: 200, message: "OK"})
             } catch (error) {
-                if (error instanceof GPIOError) {
-                    this.App.sendResponse(res, undefined, {code: error.code, message: error.message})
-                    return;
-                } else {
-                    throw error;
-                }
+                this.handleError(res, error)
             }
         })
 
@@ -46,12 +41,7 @@ export class GpioController {
                 let response: CardPin = this.App.GpioModule.readPinValueFromGPIO(card, numberOnCard)
                 this.App.sendResponse(res, response, {code: 200, message: "OK"})
             } catch (error) {
-                if (error instanceof GPIOError) {
-                    this.App.sendResponse(res, undefined, {code: error.code, message: error.message})
-                    return;
-                } else {
-                    throw error;
-                }
+                this.handleError(res, error)
             }
         })
 
@@ -65,12 +55,7 @@ export class GpioController {
                 let response: Card = this.App.GpioModule.readCardValuesFromGPIO(card)
                 this.App.sendResponse(res, response, {code: 200, message: "OK"})
             } catch (error) {
-                if (error instanceof GPIOError) {
-                    this.App.sendResponse(res, undefined, {code: error.code, message: error.message})
-                    return;
-                } else {
-                    throw error;
-                }
+                this.handleError(res, error)
             }
         })
 
@@ -79,12 +64,7 @@ export class GpioController {
                 let response: Card[] = this.App.GpioModule.readAllCards()
                 this.App.sendResponse(res, response, {code: 200, message: "OK"})
             } catch (error) {
-                if (error instanceof GPIOError) {
-                    this.App.sendResponse(res, undefined, {code: error.code, message: error.message})
-                    return;
-                } else {
-                    throw error;
-                }
+               this.handleError(res, error)
             }
         })
 
@@ -98,12 +78,7 @@ export class GpioController {
                 let response: GPIOModule = this.App.GpioModule.getModule(parseInt(module))
                 this.App.sendResponse(res, response, {code: 200, message: "OK"})
             } catch (error) {
-                if (error instanceof GPIOError) {
-                    this.App.sendResponse(res, undefined, {code: error.code, message: error.message})
-                    return;
-                } else {
-                    throw error;
-                }
+                this.handleError(res, error)
             }
         })
 
@@ -112,15 +87,40 @@ export class GpioController {
                 let response: GPIOModule[] = this.App.GpioModule.getAllModules()
                 this.App.sendResponse(res, response, {code: 200, message: "OK"})
             } catch (error) {
-                if (error instanceof GPIOError) {
-                    this.App.sendResponse(res, undefined, {code: error.code, message: error.message})
-                    return;
-                } else {
-                    throw error;
-                }
+                this.handleError(res, error)
             }
         })
 
+        this.router.get('/writeModule/:module/:pin/:state', (req: Request, res: Response) => {
+            let module: string = req.params.module
+            let pin: string = req.params.pin
+            let state: string = req.params.state
+            try {
+                let response: GPIOModule = this.App.GpioModule.writeToModule(module, pin, state)
+                this.App.sendResponse(res, response, {code: 200, message: "OK"})
+            } catch (error) {
+                this.handleError(res, error)
+            }
+        })
+
+        this.router.get('/getPinout', (req: Request, res: Response) => {
+            try {
+                let response: Pinout[] = this.App.GpioModule.getPinout()
+                this.App.sendResponse(res, response, {code: 200, message: "OK"})
+            } catch (error) {
+                this.handleError(res, error)
+            }
+        })
+
+    }
+
+    handleError(res: Response, error: unknown): void {
+        if (error instanceof GPIOError) {
+            this.App.sendResponse(res, undefined, {code: error.code, message: error.message})
+            return;
+        } else {
+            throw error;
+        }
     }
 
 }
