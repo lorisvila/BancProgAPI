@@ -22,7 +22,30 @@ export class GPIOError extends Error {
     }
 }
 
-export type ErrorNameCommand = 'COMMAND_NOT_FOUND' | 'ETAT_NOT_FOUND' | 'COMMAND_FORBIDDEN' | '' | '' | ''
+export type ErrorNameRequest =
+    'OPTIONS_MISSING' |
+    'COMMAND_NOT_FOUND'
+
+export class RequestError extends Error {
+    name: ErrorNameRequest;
+    message: string;
+    cause: any;
+    code: number;
+
+    constructor(name: ErrorNameRequest, message: string, args?: {code?: number, cause?: any}) {
+        super();
+        this.name = name;
+        this.message = message;
+        this.cause = args?.cause;
+        this.code = args?.code ? args.code : 500; // By default it is a error 500
+    }
+}
+
+
+export type ErrorNameCommand =
+    'COMMAND_NOT_FOUND' |
+    'ETAT_NOT_FOUND' |
+    'COMMAND_FORBIDDEN'
 
 export class CommandError extends Error {
     name: ErrorNameCommand;

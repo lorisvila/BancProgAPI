@@ -94,16 +94,22 @@ export type ConfigNetworking = {
   addresses: DeviceNetworkParams[]
 }
 export type DeviceNetworkParams = {
+  name: string
   IP: string,
   SubnetMask: string
   IsAlive?: boolean
 }
 
 // Requests Types
-
+export type WebSocketRequestType = {
+  refresh: boolean
+  commands: string[]
+  options?: {}
+}
 export type ResponseType = {
   date: number // Time as the 32 bits value of time
   data: any
+  dataName?: string // Used for WebSockets
   status: {
     code: number,
     message?: string

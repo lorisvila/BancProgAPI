@@ -65,14 +65,12 @@ export class GpioModule {
     // Controller gateway functions
 
     readCardValuesFromGPIO(cardName: string): Card {
-        let card: Card = this.checkAndGetCard(cardName)
-        return card
+        return this.checkAndGetCard(cardName)
     }
 
     readPinValueFromGPIO(cardName: string, numberOnCard: string): CardPin {
         let card: Card = this.checkAndGetCard(cardName)
-        let pin: CardPin = this.checkAndGetPin(card, numberOnCard)
-        return pin
+        return this.checkAndGetPin(card, numberOnCard)
     }
 
     writeValueToGPIO(cardName: string, numberOnCard: string, value: boolean): CardPin {
@@ -107,13 +105,14 @@ export class GpioModule {
         return modules
     }
 
-    writeToModule(moduleNumber: string, pinNumber: string, state: string): GPIOModule {
-        let moduleNumberInt: number = parseInt(moduleNumber)
-        let pinNumberInt: number = parseInt(pinNumber)
-        if (isNaN(moduleNumberInt) || isNaN(pinNumberInt) || !["true", "false"].includes(state)) {
+    writeToModule(moduleNumber: string | number, pinNumber: string | number, state: string | boolean): GPIOModule {
+        let moduleNumberInt: number = typeof moduleNumber == "string" ?  parseInt(moduleNumber) : moduleNumber
+        let pinNumberInt: number = typeof pinNumber == "string" ? parseInt(pinNumber) : pinNumber
+        if (isNaN(moduleNumberInt) || isNaN(pinNumberInt) ||
+            (typeof state == "string" && !["true", "false"].includes(state))) {
             throw new GPIOError('PIN_OR_MODULE_GPIO_NOT_FOUND', "Le module et ou le pin et ou l'état ne sont pas au bon format...")
         }
-        let stateBool = JSON.parse(state)
+        let stateBool = typeof state == "string" ? JSON.parse(state) : state
         return this.writeValueToModuleRegister(moduleNumberInt, pinNumberInt, stateBool)
     }
 
@@ -181,6 +180,7 @@ export class GpioModule {
             })
         })
         module.registers[registerNumber] = module.registers[registerNumber] + (value ? selector : selector*-1)
+        console.log(module.registers)
         return module
     }
 

@@ -7,6 +7,7 @@ export class NetworkModule {
     mainClass: App
     bancConfiguration: BancConfig | undefined
 
+
     constructor(mainClass: App) {
         this.mainClass = mainClass
         this.bancConfiguration = this.mainClass.MainModule.bancConfiguration
@@ -21,7 +22,7 @@ export class NetworkModule {
                 let deviceCategory: ConfigNetworking = this.bancConfiguration.Networking[item]
                 for (let item2 in deviceCategory.addresses) {
                     let device: DeviceNetworkParams = deviceCategory.addresses[item2]
-                    sys.probe(device.IP, (isAlive, err) => {
+                    sys.probe(device.IP, (isAlive, _err) => {
                         //console.log(device.IP, isAlive)
                         if (isAlive == null) {isAlive = false}
                         if (this.bancConfiguration) {

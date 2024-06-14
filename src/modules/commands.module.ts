@@ -104,9 +104,6 @@ export class CommandsModule {
     }
 
     refreshEtats() {
-        if (this.lastEtatRefresh && (new Date().getTime() - this.lastEtatRefresh.getTime())/1000 <= 1) {
-            return
-        }
         for (let etatId in this.ActualEtats) {
             let etat: Etat = this.ActualEtats[etatId]
 

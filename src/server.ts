@@ -11,13 +11,17 @@ import {NetworkController} from "~/ressources/network.controller";
 import {NetworkModule} from "~/modules/network.module";
 import {CommandsController} from "~/ressources/commands.controller";
 import {CommandsModule} from "~/modules/commands.module";
+import {WebSocketServer} from "ws";
+import {WebSocketHandlerController} from "~/ressources/WebSocketHandler.controller";
 
+// chmod -R a+x Webstorm_API/node_modules/
 
 const CONFIG_FILE_PATH: string = "./config.json"
 
 export class App {
 
-  app: Express = express()
+  app: Express
+  wss: WebSocketServer
   config: ConfigType
   MainController: MainController
   MainModule: MainModule
@@ -27,8 +31,11 @@ export class App {
   NetworkModule: NetworkModule
   CommandsController: CommandsController
   CommandsModule: CommandsModule
+  WebSocketHandlerController: WebSocketHandlerController
 
   constructor() {
+    this.app = express();
+    this.wss = new WebSocketServer({port: 8081});
     this.app.use(express.json())
     let tmp_config: ConfigType | undefined = this.getConfig()
     if (!tmp_config) {
@@ -43,6 +50,7 @@ export class App {
     this.GpioController = new GpioController(this)
     this.NetworkController = new NetworkController(this)
     this.CommandsController = new CommandsController(this)
+    this.WebSocketHandlerController = new WebSocketHandlerController(this)
 
     this.app.use(cors())
 
@@ -62,7 +70,7 @@ export class App {
     this.app.listen(this.config.webserver.port, this.config.webserver.host)
   }
 
-  logRequest(req: Request, res: Response, next: NextFunction) {
+  logRequest(req: Request, _res: Response, next: NextFunction) {
     let ip = req.ip
     let endpoint = req.url
     let date = new Date().toUTCString()
@@ -90,10 +98,6 @@ export class App {
     }
   }
 
-  writeConfig() {
-    fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(this.config, null, 4))
-  }
-
 }
 
-const server: App = new App()
+new App()
