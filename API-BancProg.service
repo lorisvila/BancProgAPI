@@ -1,0 +1,14 @@
+[Unit]
+Description=API Banc de configuration
+After=network.target
+
+[Service]
+Type=simple
+User=expert
+WorkingDirectory=/home/expert/API
+ExecStart=/usr/bin/node /home/expert/API/dist/server.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+

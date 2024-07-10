@@ -1,35 +1,87 @@
 import {App} from "~/server";
-//import { init } from 'raspi'; TODO : Reactivate this line when run on raspberry pi
+import { init } from 'raspi';
 import { I2C } from 'raspi-i2c';
 import {GPIOError} from "~/types/errors";
 import {Card, CardPin, GPIOModule, Pinout} from "~/types/types";
+import {EventEmitter} from "node:events";
+import * as buffer from "node:buffer";
 
-// Node JS rasperry-pi https://www.npmjs.com/package/node-mcp23017
 // https://www.npmjs.com/package/raspi-i2c
 
+export function hexStringToNumber(hexStringified: string) {
+    return parseInt(hexStringified, 16);
+}
 
 export class GpioModule {
 
     mainClass: App
     i2c: I2C
     modulesBanc: GPIOModule[]
+    i2cSetupFinished: EventEmitter = new EventEmitter()
 
     constructor(mainClass: App) {
         this.mainClass = mainClass
         this.modulesBanc = this.mainClass.config.gpio.modules
-        this.initialiseObjectsAndRegisters()
+        try {
+            this.setupI2C()
+        } catch (error) {
+            this.mainClass.storeError(error)
+        }
+        this.i2cSetupFinished.on('i2cSetupFinished', () => {
+            try {
+                this.setupModules()
+            } catch (error) {
+                this.mainClass.storeError(error)
+            }
+            try {
+                this.initialiseObjectsAndRegisters()
+            } catch (error) {
+                this.mainClass.storeError(error)
+            }
+        })
     }
 
-    // TODO : Activate this option when on RaspberryPi
-    /*setupI2C() {
+    // ----------------------------------------
+    // I2C Bus functions
+
+    setupI2C() {
         try {
             init(() => {
                 this.i2c = new I2C()
+                this.i2cSetupFinished.emit('i2cSetupFinished')
             });
         } catch (e) {
             throw new GPIOError('I2C_BUS_ERROR', "Erreur lors de l'ouverture du bus I2C")
         }
-    }*/
+    }
+
+    setupModules() {
+        for (let moduleId in this.modulesBanc) {
+            let module = this.modulesBanc[moduleId];
+            try {
+                for (let sideId in this.mainClass.config.gpio.pinout) {
+                    let side = this.mainClass.config.gpio.pinout[sideId]
+                    // DEBUGGING - console.log(module.I2C_Address_HEX, side.register_number, module.registers, side.GPIO_register_address_HEX, side.IODIR_register_address_HEX)
+                    this.i2c.writeSync(hexStringToNumber(module.I2C_Address_HEX),
+                        hexStringToNumber(side.IODIR_register_address_HEX),
+                        Buffer.from([0x00]))
+                    this.i2c.writeSync(hexStringToNumber(module.I2C_Address_HEX),
+                        hexStringToNumber(side.GPIO_register_address_HEX),
+                        Buffer.from([module.registers[side.register_number]]))
+                }
+            } catch (error) {
+                this.mainClass.storeError(new GPIOError('I2C_BUS_ERROR', `Le module 0x${module.I2C_Address_HEX} n'a pas réussi à être initialisé...`, {code: 500}))
+            }
+        }
+    }
+
+    sendWriteCommand(moduleAddress: number, registerAdress: number, registerValue: number) {
+        try {
+            this.i2c.writeSync(moduleAddress, registerAdress, Buffer.from([registerValue]))
+        } catch (error) {
+            throw new GPIOError('I2C_BUS_ERROR', `La demande d'écriture de pin sur le bus I2C a échoué sur le module 0x${moduleAddress.toString(16)}`, {code: 500})
+        }
+    }
 
     // ----------------------------------------
     // Check functions
@@ -123,11 +175,11 @@ export class GpioModule {
     // ----------------------------------------
     // GPIO Interactions
 
-    writeValueToModuleRegisterFromObject(module: GPIOModule, pin: CardPin, value: boolean): void {
+    writeValueToModuleRegisterFromObject(module: GPIOModule, pin: CardPin, value: boolean): GPIOModule {
         let pinoutGroup: Pinout | undefined = this.mainClass.config.gpio.pinout.find(pinout => pinout.pins.includes(pin.GPIO.Pin))
         let registerNumber: number | undefined = pinoutGroup?.register_number
         let indexOfPinInRegister: number | undefined = pinoutGroup?.pins.indexOf(pin.GPIO.Pin)
-        if (indexOfPinInRegister === undefined) {
+        if (indexOfPinInRegister === undefined || pinoutGroup === undefined) {
             throw new GPIOError('PIN_NOT_FOUND', "Une drôle d'erreur est survenue...", {code: 500})
         }
         let selector = Math.pow(2, indexOfPinInRegister)
@@ -141,17 +193,20 @@ export class GpioModule {
             checkRegister = ~checkRegister // Binary NOT to the register to check if the value if "false"
         }
         if ((checkRegister & selector) > 0) { // Binary AND to the register and the wanted value
-            return // Do not continue if the state is already good
+            return module // Do not continue if the state is already good
         }
         pin.state = value
-        module.registers[registerNumber] = module.registers[registerNumber] + (value ? selector : selector*-1)
+        let newRegister = module.registers[registerNumber] + (value ? selector : selector*-1)
+        module.registers[registerNumber] = newRegister
+        this.sendWriteCommand(hexStringToNumber(module.I2C_Address_HEX), hexStringToNumber(pinoutGroup.GPIO_register_address_HEX), newRegister)
+        return module
     }
 
     writeValueToModuleRegister(moduleNumber: number, pinNumber: number, value: boolean): GPIOModule {
         let pinoutGroup: Pinout | undefined = this.mainClass.config.gpio.pinout.find(pinout => pinout.pins.includes(pinNumber))
         let registerNumber: number | undefined = pinoutGroup?.register_number
         let indexOfPinInRegister: number | undefined = pinoutGroup?.pins.indexOf(pinNumber)
-        if (indexOfPinInRegister === undefined) {
+        if (indexOfPinInRegister === undefined || pinoutGroup === undefined) {
             throw new GPIOError('PIN_NOT_FOUND', "Le pin demandé n'a pas été trouvé...", {code: 500})
         }
         let selector = Math.pow(2, indexOfPinInRegister)
@@ -179,8 +234,9 @@ export class GpioModule {
                 if (pin.GPIO.Pin == pinNumber && pin.GPIO.Module == moduleNumber) {pin.state = value}
             })
         })
-        module.registers[registerNumber] = module.registers[registerNumber] + (value ? selector : selector*-1)
-        console.log(module.registers)
+        let newRegister = module.registers[registerNumber] + (value ? selector : selector*-1)
+        module.registers[registerNumber] = newRegister
+        this.sendWriteCommand(hexStringToNumber(module.I2C_Address_HEX), hexStringToNumber(pinoutGroup.GPIO_register_address_HEX), newRegister)
         return module
     }
 
@@ -193,12 +249,16 @@ export class GpioModule {
             if (!card) {
                 throw new Error('This is a very strange error...')
             }
-            card.pins.forEach(pin => {
-                if (pin.state === undefined) {
-                    pin.state = this.mainClass.config.gpio.defaultState
-                }
-                this.writeValueToGPIO(card.cardName, pin.NumberOnCard, pin.state)
-            })
+            try {
+                card.pins.forEach(pin => {
+                    if (pin.state === undefined) {
+                        pin.state = this.mainClass.config.gpio.defaultState
+                    }
+                    this.writeValueToGPIO(card.cardName, pin.NumberOnCard, pin.state)
+                })
+            } catch (error) {
+                this.mainClass.storeError(error)
+            }
         }
     }
 

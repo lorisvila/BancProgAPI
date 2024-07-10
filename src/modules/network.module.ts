@@ -2,11 +2,11 @@ import {BancConfig, ConfigNetworking, DeviceNetworkParams} from "~/types/types";
 import {App} from "~/server";
 import {sys} from "ping";
 
+
 export class NetworkModule {
 
     mainClass: App
     bancConfiguration: BancConfig | undefined
-
 
     constructor(mainClass: App) {
         this.mainClass = mainClass
@@ -23,7 +23,6 @@ export class NetworkModule {
                 for (let item2 in deviceCategory.addresses) {
                     let device: DeviceNetworkParams = deviceCategory.addresses[item2]
                     sys.probe(device.IP, (isAlive, _err) => {
-                        //console.log(device.IP, isAlive)
                         if (isAlive == null) {isAlive = false}
                         if (this.bancConfiguration) {
                             this.bancConfiguration.Networking[item].addresses[item2].IsAlive = isAlive
@@ -32,6 +31,13 @@ export class NetworkModule {
                 }
             }
         }
+    }
+
+    connectToMESD() {
+    }
+
+    readFromMESD() {
+
     }
 
     getNetworkDevicesStatus(): ConfigNetworking[] {

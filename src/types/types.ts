@@ -9,6 +9,10 @@ export type ConfigType = {
       port: number
       host: string
   }
+  wss: {
+    port: number
+    host: string
+  }
   configs: BancConfig[]
   gpio: {
     defaultState: boolean
@@ -90,6 +94,7 @@ export type CommandeCondition = {
 export type ConfigNetworking = {
   name: string
   def: string
+  family: string
   quantity: number
   addresses: DeviceNetworkParams[]
 }
@@ -114,4 +119,11 @@ export type ResponseType = {
     code: number,
     message?: string
   }
+}
+
+
+// Errors list
+export type ErrorInListType = {
+  date: Date
+  errorObject: Error
 }
