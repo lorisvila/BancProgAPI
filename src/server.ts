@@ -13,6 +13,8 @@ import {CommandsController} from "~/ressources/commands.controller";
 import {CommandsModule} from "~/modules/commands.module";
 import {WebSocketServer} from "ws";
 import {WebSocketHandlerController} from "~/ressources/WebSocketHandler.controller";
+import {AppLogger} from "./appLogger"
+import {Logger} from "pino";
 
 // chmod -R a+x Webstorm_API/node_modules/
 // https://nodejs.org/dist/v22.3.0/node-v22.3.0-linux-armv7l.tar.xz
@@ -36,23 +38,35 @@ export class App {
   CommandsModule: CommandsModule
   WebSocketHandlerController: WebSocketHandlerController
 
+  AppLogger: AppLogger
+  logger: Logger
 
   constructor() {
-    this.app = express();
-    this.app.use(express.json());
     let tmp_config: ConfigType | undefined = this.getConfig();
-    if (!tmp_config) {
+    this.config = tmp_config as ConfigType;
+    this.AppLogger = new AppLogger(this.config);
+    this.logger = this.AppLogger.getLogger();
+    if (!this.config) {
+      this.logger.error("La configuration n'a pas été chargée... Arrêt du script !");
       process.exit(2);
     }
-    this.config = tmp_config;
+
+    this.logger.info('# Starting the Express API');
+    this.app = express();
+    this.app.use(express.json());
+    this.wss = new WebSocketServer({port: this.config.wss.port, host: this.config.wss.host});
+
+    this.logger.info('# Initialisation des modules');
     this.MainModule = new MainModule(this);
     this.GpioModule = new GpioModule(this);
     this.NetworkModule = new NetworkModule(this);
     this.CommandsModule = new CommandsModule(this);
+    this.logger.info('# Initialisation des controlleurs de requêtes HTTP');
     this.MainController = new MainController(this);
     this.GpioController = new GpioController(this);
     this.NetworkController = new NetworkController(this);
     this.CommandsController = new CommandsController(this);
+    this.logger.info('# Initialisation du contrôleur WebSocket');
     this.WebSocketHandlerController = new WebSocketHandlerController(this);
 
     this.app.use(cors());
@@ -69,17 +83,15 @@ export class App {
       this.sendResponse(res, {}, {code: 404, message: `Endpoint '${endpoint}' not found...`});
     })
 
-    console.log(`Serving server on ${this.config.webserver.host}:${this.config.webserver.port}`);
+    this.logger.info(`Serving server on ${this.config.webserver.host}:${this.config.webserver.port}`);
     this.app.listen(this.config.webserver.port, this.config.webserver.host);
-
-    this.wss = new WebSocketServer({port: this.config.wss.port, host: this.config.wss.host});
   }
 
-  logRequest(req: Request, _res: Response, next: NextFunction) {
+  logRequest = (req: Request, _res: Response, next: NextFunction)=> {
     let ip = req.ip;
     let endpoint = req.url;
     let date = new Date().toUTCString();
-    console.log(`${date} | ${ip} | ${endpoint}`);
+    this.logger.info(`Req : ${date} | ${ip} | ${endpoint}`);
     next();
   }
 
@@ -106,7 +118,7 @@ export class App {
   storeError(error: unknown): void {
     let errorObject = error as Error
     let date = new Date()
-    console.error('!Error! ' + date.toUTCString() + ' - ' + errorObject.message)
+    this.logger.error('!Error! ' + date.toUTCString() + ' - ' + errorObject.message)
     this.savedErrors = [...this.savedErrors, {date: date, errorObject: errorObject}]
   }
 

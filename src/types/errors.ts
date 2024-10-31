@@ -5,6 +5,7 @@ export type ErrorNameGPIO =
     'ERROR_WRITING_STATE' |
     'ERROR_READING_STATE' |
     'I2C_BUS_ERROR' |
+    'GPIO_MODULE_DISABLED' |
     'PIN_OR_MODULE_GPIO_NOT_FOUND'
 
 export class GPIOError extends Error {
@@ -54,6 +55,29 @@ export class CommandError extends Error {
     code: number;
 
     constructor(name: ErrorNameCommand, message: string, args?: {code?: number, cause?: any}) {
+        super();
+        this.name = name;
+        this.message = message;
+        this.cause = args?.cause;
+        this.code = args?.code ? args.code : 500; // By default it is a error 500
+    }
+}
+
+
+export type ErrorNameNetwork =
+    'NO_CONFIGURATION' |
+    'NO_SERVICE_FOUND' |
+    'NO_DEVICE_FOUND' |
+    'PY_API_ERROR' |
+    'NO_CARD_FOUND'
+
+export class NetworkError extends Error {
+    name: ErrorNameNetwork;
+    message: string;
+    cause: any;
+    code: number;
+
+    constructor(name: ErrorNameNetwork, message: string, args?: {code?: number, cause?: any}) {
         super();
         this.name = name;
         this.message = message;

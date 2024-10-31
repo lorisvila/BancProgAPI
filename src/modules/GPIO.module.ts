@@ -1,10 +1,10 @@
 import {App} from "~/server";
-import { init } from 'raspi';
-import { I2C } from 'raspi-i2c';
+import {I2C} from 'raspi-i2c';
 import {GPIOError} from "~/types/errors";
 import {Card, CardPin, GPIOModule, Pinout} from "~/types/types";
 import {EventEmitter} from "node:events";
-import * as buffer from "node:buffer";
+import {Logger} from "pino";
+import * as os from "node:os";
 
 // https://www.npmjs.com/package/raspi-i2c
 
@@ -15,19 +15,23 @@ export function hexStringToNumber(hexStringified: string) {
 export class GpioModule {
 
     mainClass: App
-    i2c: I2C
+    i2c: I2C | undefined
     modulesBanc: GPIOModule[]
-    i2cSetupFinished: EventEmitter = new EventEmitter()
+    i2cEvent: EventEmitter = new EventEmitter()
+
+    logger: Logger
 
     constructor(mainClass: App) {
         this.mainClass = mainClass
+        this.logger = this.mainClass.AppLogger.createChildLogger(this.constructor.name)
+        this.logger.info(`Initializing class ${this.constructor.name}`)
         this.modulesBanc = this.mainClass.config.gpio.modules
         try {
             this.setupI2C()
         } catch (error) {
             this.mainClass.storeError(error)
         }
-        this.i2cSetupFinished.on('i2cSetupFinished', () => {
+        this.i2cEvent.on('i2cSetupFinished', () => {
             try {
                 this.setupModules()
             } catch (error) {
@@ -44,14 +48,29 @@ export class GpioModule {
     // ----------------------------------------
     // I2C Bus functions
 
-    setupI2C() {
-        try {
-            init(() => {
-                this.i2c = new I2C()
-                this.i2cSetupFinished.emit('i2cSetupFinished')
-            });
-        } catch (e) {
-            throw new GPIOError('I2C_BUS_ERROR', "Erreur lors de l'ouverture du bus I2C")
+    async setupI2C() {
+        if (this.mainClass.config.gpio.enableRaspiGPIO) {
+
+            /*
+            "raspi": "^6.0.1",
+            "raspi-i2c": "^6.2.4"
+            */
+
+            try {
+                if (this.mainClass.config.gpio.enableRaspiGPIO && os.platform() === "linux" && os.arch() === "arm") {
+                    const { init } = await import('raspi');
+                    const { I2C } = await import('raspi-i2c');
+                    init(() => {
+                        this.i2c = new I2C()
+                        this.i2cEvent.emit('i2cSetupFinished')
+                        this.logger.debug('Initialization of the Raspi I2C gateway successful')
+                    });
+                }
+            } catch (e) {
+                throw new GPIOError('I2C_BUS_ERROR', "Erreur lors de l'ouverture du bus I2C")
+            }
+        } else {
+            this.mainClass.storeError(new GPIOError('GPIO_MODULE_DISABLED', 'Le module I2C RaspsberryPi est désactivé depuis la config !'));
         }
     }
 
@@ -61,23 +80,28 @@ export class GpioModule {
             try {
                 for (let sideId in this.mainClass.config.gpio.pinout) {
                     let side = this.mainClass.config.gpio.pinout[sideId]
-                    // DEBUGGING - console.log(module.I2C_Address_HEX, side.register_number, module.registers, side.GPIO_register_address_HEX, side.IODIR_register_address_HEX)
-                    this.i2c.writeSync(hexStringToNumber(module.I2C_Address_HEX),
-                        hexStringToNumber(side.IODIR_register_address_HEX),
-                        Buffer.from([0x00]))
-                    this.i2c.writeSync(hexStringToNumber(module.I2C_Address_HEX),
-                        hexStringToNumber(side.GPIO_register_address_HEX),
-                        Buffer.from([module.registers[side.register_number]]))
+                    if (this.i2c && this.mainClass.config.gpio.enableRaspiGPIO) {
+                        // DEBUGGING - console.log(module.I2C_Address_HEX, side.register_number, module.registers, side.GPIO_register_address_HEX, side.IODIR_register_address_HEX)
+                        this.i2c.writeSync(hexStringToNumber(module.I2C_Address_HEX),
+                            hexStringToNumber(side.IODIR_register_address_HEX),
+                            Buffer.from([0x00]))
+                        this.i2c.writeSync(hexStringToNumber(module.I2C_Address_HEX),
+                            hexStringToNumber(side.GPIO_register_address_HEX),
+                            Buffer.from([module.registers[side.register_number]]))
+                    }
                 }
             } catch (error) {
                 this.mainClass.storeError(new GPIOError('I2C_BUS_ERROR', `Le module 0x${module.I2C_Address_HEX} n'a pas réussi à être initialisé...`, {code: 500}))
             }
         }
+        this.logger.debug('All GPIO modules are initialized')
     }
 
     sendWriteCommand(moduleAddress: number, registerAdress: number, registerValue: number) {
         try {
-            this.i2c.writeSync(moduleAddress, registerAdress, Buffer.from([registerValue]))
+            if (this.i2c && this.mainClass.config.gpio.enableRaspiGPIO) {
+                this.i2c.writeSync(moduleAddress, registerAdress, Buffer.from([registerValue]))
+            }
         } catch (error) {
             throw new GPIOError('I2C_BUS_ERROR', `La demande d'écriture de pin sur le bus I2C a échoué sur le module 0x${moduleAddress.toString(16)}`, {code: 500})
         }
@@ -261,5 +285,4 @@ export class GpioModule {
             }
         }
     }
-
 }

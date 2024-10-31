@@ -1,27 +1,34 @@
 import {App} from "~/server";
 import WebSocket from "ws";
 import {ResponseType, WebSocketRequestType} from "~/types/types";
-import {CommandError, GPIOError, RequestError} from "~/types/errors";
+import {CommandError, GPIOError, NetworkError, RequestError} from "~/types/errors";
 import {EventEmitter} from "node:events";
+import {Logger} from "pino";
 
 export class WebSocketHandlerController {
 
-    App: App
-    wsSendMessageToClientsEvent: EventEmitter = new EventEmitter()
+    mainClass: App
+    wsSendMessageToClientsEvent$: EventEmitter = new EventEmitter() // Args : ('message', queryName, data, status?)
+
+    logger: Logger
 
     constructor(mainClass: App) {
-        this.App = mainClass
+        this.mainClass = mainClass
+        this.logger = this.mainClass.AppLogger.createChildLogger(this.constructor.name)
+        this.logger.info(`Initializing class ${this.constructor.name}`)
 
-        this.App.wss.on('connection', (ws, request) => {
-            console.log(`${new Date().toUTCString()} | ${request.socket.remoteAddress} | Client connected with WebSocket`)
+        this.mainClass.wss.on('connection', (ws, request) => {
+            this.logger.info(`${new Date().toUTCString()} | ${request.socket.remoteAddress} | Client connected with WebSocket`)
 
-            this.wsSendData(ws, 'errors', this.App.savedErrors, {code: 200, message: 'OK'})
+            this.wsSendData(ws, 'errors', this.mainClass.savedErrors, {code: 200, message: 'OK'})
 
             ws.on('close', () => {
-                console.log(`${new Date().toUTCString()} | ${request.socket.remoteAddress} | Client disconnected with WebSocket`)
+                this.logger.info(`${new Date().toUTCString()} | ${request.socket.remoteAddress} | Client disconnected with WebSocket`)
             })
 
-            ws.on('error', console.error)
+            ws.on('error', (err) => {
+                this.logger.error(err.message + ' | ' + err.message)
+            })
 
             ws.on('message', (data) => {
                 let dataObject: undefined | WebSocketRequestType = undefined
@@ -37,20 +44,21 @@ export class WebSocketHandlerController {
                         {code: 500, message: "Il manque des éléments dans ta requête... Pas bien jeune 😉"})
                     return;
                 }
-                this.handleCommands(ws, dataObject.commands, dataObject.options)
+                this.logger.debug(`${new Date().toUTCString()} | ${request.socket.remoteAddress} | Client request(s) ${dataObject.commands} | Refresh : ${dataObject.refresh} | Options : ${JSON.stringify(dataObject.options)}`)
+                this.handleCommands(dataObject.commands, dataObject.options)
                 if (dataObject.refresh) {
                     this.wsSendData(ws, 'refreshedFinsish', undefined)
                 }
             })
 
-            this.wsSendMessageToClientsEvent.on('message', (queryName, data) => {
-                this.wsSendData(ws, queryName, data)
+            this.wsSendMessageToClientsEvent$.on('message', (queryName, data, status?) => {
+                this.wsSendData(ws, queryName, data, status)
             })
         })
 
     }
 
-    handleCommands(ws: WebSocket, commandsList: string[], globalOptions?: {}) {
+    handleCommands(commandsList: string[], globalOptions?: {}) {
         for (let queryNameId in commandsList) {
             let queryName: string = commandsList[queryNameId]
             let options: undefined | {} = undefined
@@ -58,70 +66,94 @@ export class WebSocketHandlerController {
                 options = globalOptions[queryName as keyof typeof globalOptions]
             }
             try {
-                this.handleCommand(ws, queryName, options)
+                this.handleCommand(queryName, options)
             } catch (error) { // Try to handle the command and if it crashes, catch it, if it is a custom error, return a message that there was an error, if not crash...
-                if (error instanceof GPIOError || error instanceof CommandError || error instanceof RequestError) {
-                    this.wsSendData(ws, queryName, undefined, {code: error.code, message: error.message})
-                    this.sendGpioRefreshedData(ws) // TODO : This may loop; because if the called function when refreshing crashes... It will loop forever...
+                if (error instanceof GPIOError || error instanceof CommandError || error instanceof RequestError || error instanceof NetworkError) {
+                    this.logger.error(`Client had a error : ${error.code} | ${error.name} | ${error.message}`)
+                    this.wsSendMessageToClientsEvent$.emit(queryName, undefined, {code: error.code, message: error.message})
+                    this.sendGpioRefreshedData() // TODO : This may loop; because if the called function when refreshing crashes... It will loop forever...
                 } else {
-                    this.wsSendData(ws, queryName, undefined, {code: 500, message: "Une erreur côté serveur est survenue"})
+                    this.logger.error(`Client had a error : 500 | INTERN_ERROR | ${(error as Error).message}`)
+                    this.wsSendMessageToClientsEvent$.emit(queryName, undefined, {code: 500, message: "Une erreur côté serveur est survenue"})
                 }
                 return
             }
         }
     }
 
-    handleCommand(ws: WebSocket, queryName: string, options?: {}) {
+    handleCommand(queryName: string, options?: {}) {
+        this.logger.debug(`Handling command ${queryName} with options : ${JSON.stringify(options)}`)
         switch (queryName) {
             // All the get commands -->
             case "networkDevicesStatus": {
-                let data = this.App.NetworkModule.getNetworkDevicesStatus()
-                this.wsSendData(ws, queryName, data)
+                let data = this.mainClass.NetworkModule.getNetworkDevicesStatus()
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, data)
                 break;
             }
             case "allConfigs": {
-                let data = this.App.config.configs
-                this.wsSendData(ws, queryName, data)
+                let data = this.mainClass.config.configs
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, data)
                 break;
             }
             case "currentConfig": {
-                let data = this.App.MainModule.bancConfiguration
-                this.wsSendData(ws, queryName, data)
+                let data = this.mainClass.MainModule.bancConfiguration
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, data)
                 break;
             }
             case "allCards": {
-                let data = this.App.GpioModule.readAllCards()
-                this.wsSendData(ws, queryName, data)
+                let data = this.mainClass.GpioModule.readAllCards()
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, data)
                 break;
             }
             case "allModules": {
-                let data = this.App.GpioModule.getAllModules()
-                this.wsSendData(ws, queryName, data)
+                let data = this.mainClass.GpioModule.getAllModules()
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, data)
                 break;
             }
             case "bancPinout": {
-                let data = this.App.GpioModule.getPinout()
-                this.wsSendData(ws, queryName, data)
+                let data = this.mainClass.GpioModule.getPinout()
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, data)
                 break;
             }
             case "allCommands": {
-                let data = this.App.CommandsModule.getAllCommands()
-                this.wsSendData(ws, queryName, data)
+                let data = this.mainClass.CommandsModule.getAllCommands()
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, data)
                 break;
             }
             case "availableCommands": {
-                let data = this.App.CommandsModule.getAvailableCommands()
-                this.wsSendData(ws, queryName, data)
+                let data = this.mainClass.CommandsModule.getAvailableCommands()
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, data)
                 break;
             }
             case "allEtats": {
-                let data = this.App.CommandsModule.getAllEtats()
-                this.wsSendData(ws, queryName, data)
+                let data = this.mainClass.CommandsModule.getAllEtats()
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, data)
                 break;
             }
             case "updateRegisters": {
-                let data = this.App.GpioModule.initialiseObjectsAndRegisters()
-                this.wsSendData(ws, queryName, undefined)
+                this.mainClass.GpioModule.setupModules()
+                this.mainClass.GpioModule.initialiseObjectsAndRegisters()
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, undefined)
+                break;
+            }
+            case "getSwitchData": {
+                let data = this.mainClass.NetworkModule.getAllSwitchData()
+                this.wsSendMessageToClientsEvent$.emit('message', queryName, data)
+                break;
+            }
+            // All the post commands -->
+            case "changeConfiguration": {
+                if (!options) {
+                    throw new RequestError('OPTIONS_MISSING', 'Il manque les options dans votre requête...', {})
+                }
+                let configurationName: string | undefined = undefined
+                try {
+                    configurationName = options['configurationName' as keyof typeof options]
+                } catch (error) {
+                    throw new RequestError('OPTIONS_MISSING', 'Une option manque dans votre requête...')
+                }
+                this.mainClass.MainModule.importConfigBanc(configurationName)
+                this.sendAllRefreshedData()
                 break;
             }
             case "writeToCard": {
@@ -138,8 +170,8 @@ export class WebSocketHandlerController {
                 } catch (error) {
                     throw new RequestError('OPTIONS_MISSING', 'Une option manque dans votre requête...')
                 }
-                this.App.GpioModule.writeValueToGPIO(cardNumber, numberOnCard, state)
-                this.sendGpioRefreshedData(ws)
+                this.mainClass.GpioModule.writeValueToGPIO(cardNumber, numberOnCard, state)
+                this.sendGpioRefreshedData()
                 break;
             }
             case "writeToModule": {
@@ -156,8 +188,8 @@ export class WebSocketHandlerController {
                 } catch (error) {
                     throw new RequestError('OPTIONS_MISSING', 'Une option manque dans votre requête...')
                 }
-                this.App.GpioModule.writeToModule(module, pin, state)
-                this.sendGpioRefreshedData(ws)
+                this.mainClass.GpioModule.writeToModule(module, pin, state)
+                this.sendGpioRefreshedData()
                 break;
             }
             case "sendCommand": {
@@ -172,8 +204,21 @@ export class WebSocketHandlerController {
                 } catch (error) {
                     throw new RequestError('OPTIONS_MISSING', 'Une option manque dans votre requête...')
                 }
-                this.App.CommandsModule.sendCommand(commandName, force)
-                this.sendGpioRefreshedData(ws)
+                this.mainClass.CommandsModule.sendCommand(commandName, force)
+                this.sendGpioRefreshedData()
+                break;
+            }
+            case "sendSwitchArchitecture": {
+                if (!options) {
+                    throw new RequestError('OPTIONS_MISSING', 'Il manque les options dans votre requête...', {})
+                }
+                let architecture: string | undefined = undefined
+                try {
+                    architecture = options['architecture' as keyof typeof options]
+                } catch (error) {
+                    throw new RequestError('OPTIONS_MISSING', 'Une option manque dans votre requête...')
+                }
+                this.mainClass.NetworkModule.changeSwitchArchitecture(architecture)
                 break;
             }
             default: {
@@ -182,8 +227,12 @@ export class WebSocketHandlerController {
         }
     }
 
-    sendGpioRefreshedData(ws: WebSocket) {
-        this.handleCommands(ws, ['allEtats', 'availableCommands', 'allModules', 'allCards'])
+    sendAllRefreshedData() {
+        this.handleCommands(['networkDevicesStatus', 'allConfigs', 'currentConfig', 'allCards', 'allModules', 'bancPinout', 'availableCommands', 'allEtats', 'getSwitchData'])
+    }
+
+    sendGpioRefreshedData() {
+        this.handleCommands(['allEtats', 'availableCommands', 'allModules', 'allCards', 'getSwitchData'])
     }
 
     wsSendData(ws: WebSocket, dataName: string, data: any, status?: {code: number, message: string}): void {

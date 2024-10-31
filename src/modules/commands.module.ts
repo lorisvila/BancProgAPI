@@ -1,6 +1,7 @@
 import {Card, CardPin, Commande, CommandeCondition, Etat, EtatState, OutputCommandOrState} from "~/types/types";
 import {CommandError} from "~/types/errors";
 import {App} from "~/server";
+import {Logger} from "pino";
 
 export class CommandsModule {
 
@@ -9,8 +10,12 @@ export class CommandsModule {
     ActualCommandes: Commande[]
     lastEtatRefresh: Date | undefined
 
+    logger:  Logger
+
     constructor(mainClass: App) {
         this.mainClass = mainClass
+        this.logger = this.mainClass.AppLogger.createChildLogger(this.constructor.name)
+        this.logger.info(`Initializing class ${this.constructor.name}`)
         if (!this.mainClass.MainModule.bancConfiguration) {
             throw new Error("Ceci est une drôle d'erreur...")
         }

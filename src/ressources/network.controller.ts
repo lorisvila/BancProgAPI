@@ -1,6 +1,6 @@
 import {Request, Response, Router} from "express";
 import {App} from "~/server";
-import {ConfigNetworking, DeviceNetworkParams} from "~/types/types";
+import {ConfigNetworking} from "~/types/types";
 
 export class NetworkController {
 
